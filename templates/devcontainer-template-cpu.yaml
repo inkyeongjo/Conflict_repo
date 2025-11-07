@@ -1,0 +1,118 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: <USER_NAME>-<PROJECT_NAME>-<CUDA_VERSION>-<POD_VERSION><CONTAINER_POSTFIX>
+  namespace: hyperaccel-<TEAM_NAME>-ns
+  labels:
+    app: devcontainer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devcontainer
+  template:
+    metadata:
+      labels:
+        app: devcontainer
+        team: <TEAM_NAME>
+        username: <USER_NAME>
+        devcontainer.io/devcontainer: "true"
+    spec:
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+      containers:
+      - name: devcontainer
+        image: cr.hyperaccel.net/hyperaccel/devcontainer-<PROJECT_NAME>:<CUDA_VERSION>-<PROJECT_VERSION>
+        env:
+        # Hugging Face env
+        - name: HF_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: huggingface-secret
+              key: token
+        - name: HF_HOME
+          value: /shared/huggingface
+
+        - name: CUDA_VERSION
+          value: "<CUDA_VERSION>"
+        - name: PYTHON_VERSION
+          value: "<PYTHON_VERSION>"
+        - name: SHELL_IN_CONTAINER
+          value: "<SHELL_ENV>"
+
+        # UV env
+        - name: UV_DEFAULT_INDEX
+          value: "http://nexus.hyperaccel.ai/repository/pypi-group/simple/"
+        - name: UV_PUBLISH_URL
+          value: "http://nexus.hyperaccel.ai/repository/pypi-hosted/"
+        - name: UV_PUBLISH_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: pypi-upload-cred
+              key: username
+        - name: UV_PUBLISH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pypi-upload-cred
+              key: password
+
+        # Twine env
+        - name: TWINE_REPOSITORY_URL
+          value: "http://nexus.hyperaccel.ai/repository/pypi-hosted/"
+        - name: TWINE_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: pypi-upload-cred
+              key: username
+        - name: TWINE_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: pypi-upload-cred
+              key: password
+
+        volumeMounts:
+        - name: huggingface-shared
+          mountPath: /shared/huggingface
+        - name: user-home-dir
+          mountPath: /root
+        - name: pip-conf
+          mountPath: /etc/pip.conf
+          subPath: pip.conf
+
+        stdin: true
+        tty: true
+        resources:
+          requests:
+            cpu: "8"
+            memory: "32Gi"
+            
+      imagePullSecrets:
+        - name: <TEAM_NAME>-harbor-secret
+      volumes:
+        - name: huggingface-shared
+          persistentVolumeClaim:
+            claimName: huggingface-<TEAM_NAME>-pvc
+        - name: user-home-dir
+          persistentVolumeClaim:
+            claimName: <USER_NAME>-user-home-pvc
+        - name: pip-conf
+          configMap:
+            name: hyperaccel-pip-conf
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: <USER_NAME>-user-home-pvc
+  namespace: hyperaccel-<TEAM_NAME>-ns
+  labels:
+    team: <TEAM_NAME>
+    username: <USER_NAME>
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 100Gi
+  storageClassName: nfs-shared

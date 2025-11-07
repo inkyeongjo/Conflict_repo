@@ -1,3 +1,0 @@
-merge test
-line from jo
-line from inin
