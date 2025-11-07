@@ -31,8 +31,8 @@ usage() {
 }
 
 # Default values
-USER_NAME=""
-TEAM_NAME=""
+USER_NAME="inin"
+TEAM_NAME="ml"
 PROJECT_NAME="aida"
 CUDA_VERSION="cpu"
 POD_VERSION="cpu"
