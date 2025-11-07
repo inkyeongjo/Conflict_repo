@@ -1,0 +1,2 @@
+# This file ensures the k8s-yaml directory is tracked by git
+# while the generated YAML files inside are ignored
